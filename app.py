@@ -51,4 +51,53 @@ if uploaded_file:
                 else:
                     counts[col] = 0
                     new_cols.append(col)
-            return new
+            return new_cols
+
+        # 重新指定標題
+        df_business.columns = handle_duplicates(headers.iloc[business_col_indices].tolist())
+        df_media.columns = handle_duplicates(headers.iloc[media_col_indices].tolist())
+
+        # --- 需求：第一欄日期格式純化 (移除時間) ---
+        try:
+            date_col = df_business.columns[0]
+            df_business[date_col] = pd.to_datetime(df_business[date_col]).dt.date
+            df_media[date_col] = pd.to_datetime(df_media[date_col]).dt.date
+        except:
+            pass
+
+        # --- 需求：所有數值補零 ---
+        df_business = df_business.fillna(0)
+        df_media = df_media.fillna(0)
+
+        st.success("✅ 檔案處理完成！")
+
+        # --- 下載區 ---
+        def to_excel(df):
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False)
+            return output.getvalue()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Business 數據")
+            st.download_button(
+                label="📥 下載 ROI_Business.xlsx",
+                data=to_excel(df_business),
+                file_name="ROI_Business.xlsx",
+                key="dl_roi_biz"
+            )
+            st.dataframe(df_business.head(10))
+
+        with col2:
+            st.subheader("Media 數據")
+            st.download_button(
+                label="📥 下載 ROI_Media.xlsx",
+                data=to_excel(df_media),
+                file_name="ROI_Media.xlsx",
+                key="dl_roi_media"
+            )
+            st.dataframe(df_media.head(10))
+
+    except Exception as e:
+        st.error(f"轉換過程中發生錯誤：{e}")
