@@ -99,4 +99,14 @@ if uploaded_file:
                 key="dl_biz",
                 use_container_width=True
             )
-        with col_dl2
+        with col_dl2:
+            st.download_button(
+                label="💾 下載 ROI_Media.xlsx",
+                data=to_excel(df_media),
+                file_name="ROI_Media.xlsx",
+                key="dl_media",
+                use_container_width=True
+            )
+
+    except Exception as e:
+        st.error(f"❌ 處理失敗：{e}")
