@@ -2,55 +2,63 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-st.set_page_config(page_title="ROI 數據自動轉換工具 v2.2", layout="centered")
+st.set_page_config(page_title="ROI 數據轉換穩定版", layout="centered")
 
-st.title("📊 ROI 數據自動分類轉換器 v2.2")
-st.write("修正：支援跨欄置中標籤自動延伸 & 數值補零")
+st.title("📊 ROI 數據自動分類轉換器 v2.3")
+st.write("修正：解決數值複製不完整與欄位名稱重複問題")
 
 uploaded_file = st.file_uploader("選擇您的 Excel 檔案", type=["xlsx"])
 
 if uploaded_file:
     try:
-        # 1. 讀取原始資料 (不設 header)
+        # 1. 讀取原始資料 (不設定 header，確保完整讀入)
         df_raw = pd.read_excel(uploaded_file, header=None)
         
-        # --- 處理第 2 行跨欄置中的問題 ---
-        # 提取第 2 行 (索引為 1)，並使用 ffill() 讓標籤向後延伸
-        # 例如: [KPI, NaN, NaN, Media] -> [KPI, KPI, KPI, Media]
+        # --- 處理第 2 行跨欄置中的標籤 (填充) ---
+        # fillna(method='ffill') 讓 [KPI, NaN, NaN] 變成 [KPI, KPI, KPI]
         groups = df_raw.iloc[1, :].fillna(method='ffill')
         
-        # 提取第 4 行標題與數據
+        # --- 處理第 4 行標題 ---
         headers = df_raw.iloc[3, :]
+        
+        # --- 處理數據主體 (從第 5 行開始到最後一行) ---
         data = df_raw.iloc[4:].copy()
-        data.columns = headers
-
-        # --- 需求 1: Date/Week 格式純化 ---
-        first_col_name = headers.iloc[0]
-        try:
-            data[first_col_name] = pd.to_datetime(data[first_col_name]).dt.strftime('%Y-%m-%d')
-        except:
-            pass
-
-        # --- 需求 2 & 3: 分類邏輯 ---
-        business_cols = [first_col_name]
-        media_cols = [first_col_name]
+        
+        # 重要修正：先用「數字索引」來分類，避免重複標題造成的數據遺失
+        first_col_idx = 0
+        business_col_indices = [first_col_idx]
+        media_col_indices = [first_col_idx]
 
         for i in range(1, len(groups)):
             group_name = str(groups.iloc[i])
-            col_name = headers.iloc[i]
-            
-            # 如果這一欄屬於 KPI 群組 (包含跨欄置中延伸過來的)
+            # 判斷邏輯
             if "KPI" in group_name:
-                business_cols.append(col_name)
-            # 如果這一欄屬於 Media 群組
+                business_col_indices.append(i)
             elif "Media" in group_name:
-                media_cols.append(col_name)
+                media_col_indices.append(i)
 
-        # 需求 4: 建立資料表並強制補零
-        df_business = data[business_cols].fillna(0)
-        df_media = data[media_cols].fillna(0)
+        # 2. 根據「位置」取出數據
+        df_business = data.iloc[:, business_col_indices]
+        df_media = data.iloc[:, media_col_indices]
 
-        st.success("檔案解析成功！跨欄標籤已自動辨識。")
+        # 3. 重新賦予正確的標題
+        df_business.columns = headers.iloc[business_col_indices]
+        df_media.columns = headers.iloc[media_col_indices]
+
+        # --- 需求 1: 第一欄 Date 格式純化 ---
+        try:
+            # 轉換第一欄 (Week/Date)
+            date_col = df_business.columns[0]
+            df_business[date_col] = pd.to_datetime(df_business[date_col]).dt.date
+            df_media[date_col] = pd.to_datetime(df_media[date_col]).dt.date
+        except:
+            pass
+
+        # 需求 2: 全域補零 (包含空白處)
+        df_business = df_business.fillna(0)
+        df_media = df_media.fillna(0)
+
+        st.success(f"解析成功！Business 欄位數：{len(df_business.columns)}，Media 欄位數：{len(df_media.columns)}")
 
         # --- 下載區 ---
         def to_excel(df):
@@ -71,4 +79,4 @@ if uploaded_file:
             st.dataframe(df_media.head())
 
     except Exception as e:
-        st.error(f"處理失敗：{e}")
+        st.error(f"處理失敗，錯誤原因：{e}")
