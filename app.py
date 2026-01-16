@@ -2,20 +2,28 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-# 將 layout 改回 centered (置中)
-st.set_page_config(page_title="ROI 數據轉換工具 v2.7", layout="centered")
+# 設定置中佈局
+st.set_page_config(page_title="ROI 數據轉換工具 v2.8", layout="centered")
 
 st.title("📊 ROI 數據自動分類轉換器")
-st.info("介面優化：預覽在上，下載按鈕在最下方，並採用置中寬度。")
+st.info("支援功能：xlsx/csv 雙格式上傳、跨欄標籤辨識、排除 Non-Media、自動補零。")
 
-uploaded_file = st.file_uploader("第一步：選擇您的 Excel 檔案", type=["xlsx"])
+# 修改 type 參數，同時接受 xlsx 與 csv
+uploaded_file = st.file_uploader("第一步：選擇您的檔案 (Excel 或 CSV)", type=["xlsx", "csv"])
 
 if uploaded_file:
     try:
-        # 1. 讀取原始資料
-        df_raw = pd.read_excel(uploaded_file, header=None)
+        # --- 判斷檔案格式並讀取 ---
+        file_extension = uploaded_file.name.split('.')[-1].lower()
         
-        # --- 處理第 2 行跨欄置中標籤 ---
+        if file_extension == 'csv':
+            # CSV 讀取，不設 header
+            df_raw = pd.read_csv(uploaded_file, header=None)
+        else:
+            # Excel 讀取，不設 header
+            df_raw = pd.read_excel(uploaded_file, header=None)
+        
+        # --- 處理第 2 行跨欄置中標籤 (向後填充) ---
         groups = df_raw.iloc[1, :].fillna(method='ffill')
         
         # --- 處理第 4 行標題 ---
@@ -69,7 +77,7 @@ if uploaded_file:
         df_business = df_business.fillna(0)
         df_media = df_media.fillna(0)
 
-        # --- 顯示預覽 ---
+        # --- 顯示預覽 (放在上方) ---
         st.success("✅ 檔案解析完成，請確認預覽數據：")
         
         st.subheader("📁 Business 預覽")
@@ -78,18 +86,18 @@ if uploaded_file:
         st.subheader("📁 Media 預覽")
         st.dataframe(df_media.head(10), use_container_width=True)
 
-        st.divider() # 加入分隔線
+        st.divider() # 分隔線
 
-        # --- 下載區 ---
+        # --- 下載區 (放在最下方) ---
         st.subheader("第二步：點擊按鈕下載檔案")
         
         def to_excel(df):
             output = BytesIO()
+            # 下載統一轉為 Excel 格式 (較好閱讀與後續使用)
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False)
             return output.getvalue()
 
-        # 在置中模式下，按鈕上下排列或分欄顯示皆可
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             st.download_button(
@@ -109,4 +117,4 @@ if uploaded_file:
             )
 
     except Exception as e:
-        st.error(f"❌ 處理失敗：{e}")
+        st.error(f"❌ 處理失敗，請檢查檔案內容是否正確：{e}")
