@@ -80,4 +80,4 @@ if uploaded_file:
             st.dataframe(df_media.head())
 
     except Exception as e:
-        st.error(
+        st.error(f"處理檔案時出錯：{e}")
