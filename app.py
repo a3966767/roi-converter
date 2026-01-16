@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-st.set_page_config(page_title="ROI 數據轉換工具 v2.6", layout="wide")
+# 將 layout 改回 centered (置中)
+st.set_page_config(page_title="ROI 數據轉換工具 v2.7", layout="centered")
 
 st.title("📊 ROI 數據自動分類轉換器")
-st.info("介面優化：預覽在上，下載按鈕在最下方。")
+st.info("介面優化：預覽在上，下載按鈕在最下方，並採用置中寬度。")
 
 uploaded_file = st.file_uploader("第一步：選擇您的 Excel 檔案", type=["xlsx"])
 
@@ -68,21 +69,19 @@ if uploaded_file:
         df_business = df_business.fillna(0)
         df_media = df_media.fillna(0)
 
-        # --- 顯示預覽 (放在上方) ---
-        st.success("✅ 檔案解析完成，請確認下方預覽數據：")
+        # --- 顯示預覽 ---
+        st.success("✅ 檔案解析完成，請確認預覽數據：")
         
-        col_pre1, col_pre2 = st.columns(2)
-        with col_pre1:
-            st.subheader("📁 Business 預覽")
-            st.dataframe(df_business.head(10), use_container_width=True)
-        with col_pre2:
-            st.subheader("📁 Media 預覽")
-            st.dataframe(df_media.head(10), use_container_width=True)
+        st.subheader("📁 Business 預覽")
+        st.dataframe(df_business.head(10), use_container_width=True)
+
+        st.subheader("📁 Media 預覽")
+        st.dataframe(df_media.head(10), use_container_width=True)
 
         st.divider() # 加入分隔線
 
-        # --- 下載區 (放在最下方) ---
-        st.subheader("第二步：點擊下方按鈕下載檔案")
+        # --- 下載區 ---
+        st.subheader("第二步：點擊按鈕下載檔案")
         
         def to_excel(df):
             output = BytesIO()
@@ -90,6 +89,7 @@ if uploaded_file:
                 df.to_excel(writer, index=False)
             return output.getvalue()
 
+        # 在置中模式下，按鈕上下排列或分欄顯示皆可
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             st.download_button(
